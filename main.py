@@ -37,16 +37,21 @@ def import_json(filepath):
             raise Exception("每个对象必须包含 addr 和 data")
     return data
 
+class ModernButton(ttk.Button):
+    def __init__(self, master=None, **kwargs):
+        super().__init__(master, **kwargs)
+        self.configure(style="Modern.TButton")
+
 class ModbusApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Modbus数据导入导出工具")
+        self.title("BMU数据导入导出工具")
         self._fixed_window()
         self._set_style()
         self._init_gui()
 
     def _fixed_window(self):
-        ww, wh = 1280, 540
+        ww, wh = 1280, 750  # 更高，保证全部显示
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         x = (sw - ww) // 2
@@ -59,14 +64,19 @@ class ModbusApp(tk.Tk):
         style.theme_use('clam')
         style.configure('Card.TLabelframe', background="#232C3D", borderwidth=2)
         style.configure('Card.TLabelframe.Label', background="#232C3D", foreground="#7DF9FF", font=("Arial", 14, "bold"))
-        style.configure('TButton',
+        # 科技感按钮
+        style.configure('Modern.TButton',
             font=("Arial", 13, "bold"),
-            background='#2D3E50',
-            foreground='#7DF9FF',
-            borderwidth=0)
-        style.map('TButton',
-            background=[('active', '#00C9A7'), ('pressed', '#253347')],
-            foreground=[('active', '#fff')])
+            background='#00C9A7',
+            foreground='#232C3D',
+            borderwidth=0,
+            padding=8,
+            relief="flat"
+        )
+        style.map('Modern.TButton',
+            background=[('active', '#7DF9FF'), ('pressed', '#00A1A7')],
+            foreground=[('active', '#232C3D'), ('pressed', '#232C3D')]
+        )
         style.configure('TLabel',
             font=("Arial", 12),
             background="#171E29",
@@ -94,7 +104,7 @@ class ModbusApp(tk.Tk):
 
         # ---- 参数区 ----
         param_frame = ttk.LabelFrame(main, text="Modbus参数设置", style='Card.TLabelframe')
-        param_frame.pack(fill='x', pady=8, ipady=4)
+        param_frame.pack(fill='x', pady=12, ipady=4)
         for i in range(6):
             param_frame.grid_columnconfigure(i, weight=1, uniform="col")
 
@@ -115,7 +125,7 @@ class ModbusApp(tk.Tk):
 
         # ---- 导出区 ----
         export_frame = ttk.LabelFrame(main, text="读取并导出为JSON", style='Card.TLabelframe')
-        export_frame.pack(fill='x', pady=8, ipady=4)
+        export_frame.pack(fill='x', pady=12, ipady=4)
         for i in range(6):
             export_frame.grid_columnconfigure(i, weight=1, uniform="col")
 
@@ -129,30 +139,36 @@ class ModbusApp(tk.Tk):
         self.length_entry.insert(0, "10")
         self.length_entry.grid(row=0, column=3, sticky='w', padx=8, pady=7)
 
-        self.export_result_label = tk.Label(export_frame, text="", bg=card_bg, font=("Arial", 12), fg=label_fg)
-        self.export_result_label.grid(row=1, column=0, columnspan=4, sticky='w', padx=10, pady=6)
+        self.export_btn = ModernButton(export_frame, text="读取并导出为JSON", width=20, command=self.do_read_and_export)
+        self.export_btn.grid(row=0, column=5, padx=10, pady=7)
 
-        ttk.Button(export_frame, text="读取并导出为JSON", width=20, command=self.do_read_and_export).grid(row=0, column=5, padx=10, pady=7)
+        # 导出进度条和百分比
+        self.export_progress_var = tk.DoubleVar(value=0)
+        self.export_progress_bar = ttk.Progressbar(export_frame, variable=self.export_progress_var, maximum=100, mode='determinate')
+        self.export_progress_bar.grid(row=1, column=0, columnspan=6, sticky='ew', padx=20, pady=5)
+        self.export_progress_label = tk.Label(export_frame, text="进度：0%", bg=card_bg, fg="#00C9A7", font=("Arial", 12))
+        self.export_progress_label.grid(row=2, column=0, columnspan=6, sticky='w', padx=20, pady=4)
+
+        self.export_result_label = tk.Label(export_frame, text="", bg=card_bg, font=("Arial", 12), fg=label_fg)
+        self.export_result_label.grid(row=3, column=0, columnspan=6, sticky='w', padx=10, pady=6)
 
         # ---- 导入区 ----
         import_frame = ttk.LabelFrame(main, text="批量导入JSON写入寄存器", style='Card.TLabelframe')
-        import_frame.pack(fill='x', pady=8, ipady=4)
+        import_frame.pack(fill='x', pady=12, ipady=4)
         for i in range(6):
             import_frame.grid_columnconfigure(i, weight=1, uniform="col")
 
         self.json_path_var = tk.StringVar()
         tk.Label(import_frame, text="待写入JSON文件:", bg=card_bg, fg=label_fg, font=("Arial", 12)).grid(row=0, column=0, sticky='e', padx=8, pady=7)
-        # 路径框字体颜色改成黑色
         self.json_path_entry = tk.Entry(import_frame, textvariable=self.json_path_var, width=32, bg=entry_bg, fg="black", state="readonly", relief="flat", highlightthickness=1, highlightbackground="#00C9A7", justify='center', font=("Arial", 12))
         self.json_path_entry.grid(row=0, column=1, columnspan=3, sticky='we', padx=8, pady=7)
-        ttk.Button(import_frame, text="选择JSON文件", width=16, command=self._select_json_file).grid(row=0, column=4, padx=10, pady=7)
-        ttk.Button(import_frame, text="批量写入到寄存器", width=20, command=self.do_write_from_json).grid(row=0, column=5, padx=10, pady=7)
+        ModernButton(import_frame, text="选择JSON文件", width=16, command=self._select_json_file).grid(row=0, column=4, padx=10, pady=7)
+        ModernButton(import_frame, text="批量写入到寄存器", width=20, command=self.do_write_from_json).grid(row=0, column=5, padx=10, pady=7)
 
         self.progress_var = tk.DoubleVar(value=0)
         progress_bar = ttk.Progressbar(import_frame, variable=self.progress_var, maximum=100, mode='determinate')
         progress_bar.grid(row=1, column=0, columnspan=6, sticky='ew', padx=20, pady=5)
 
-        # 百分比进度显示
         self.progress_label = tk.Label(import_frame, text="进度：0%", bg=card_bg, fg="#00C9A7", font=("Arial", 12))
         self.progress_label.grid(row=2, column=0, columnspan=6, sticky='w', padx=20, pady=4)
 
@@ -161,7 +177,7 @@ class ModbusApp(tk.Tk):
 
         # ---- 单地址写入 ----
         single_frame = ttk.LabelFrame(main, text="单独写入指定寄存器", style='Card.TLabelframe')
-        single_frame.pack(fill='x', pady=8, ipady=4)
+        single_frame.pack(fill='x', pady=30, ipady=8)  # 加大pady，保证不遮住
         for i in range(6):
             single_frame.grid_columnconfigure(i, weight=1, uniform="col")
 
@@ -175,9 +191,9 @@ class ModbusApp(tk.Tk):
         self.value_entry.insert(0, "1")
         self.value_entry.grid(row=0, column=3, sticky='w', padx=8, pady=7)
 
-        ttk.Button(single_frame, text="单独写入该地址", width=20, command=self.do_single_write).grid(row=0, column=5, padx=10, pady=7)
+        ModernButton(single_frame, text="单独写入该地址", width=20, command=self.do_single_write).grid(row=0, column=5, padx=10, pady=7)
         self.single_result_label = tk.Label(single_frame, text="", bg=card_bg, font=("Arial", 12), fg=label_fg)
-        self.single_result_label.grid(row=1, column=0, columnspan=6, sticky='w', padx=10, pady=6)
+        self.single_result_label.grid(row=1, column=0, columnspan=6, sticky='w', padx=10, pady=10)
 
     def _select_json_file(self):
         filepath = filedialog.askopenfilename(title="选择JSON文件", filetypes=[("JSON files", "*.json")])
@@ -198,12 +214,20 @@ class ModbusApp(tk.Tk):
                 data.append({"addr": start_addr + i, "data": d[0]})
             else:
                 data.append({"addr": start_addr + i, "data": None})
+            percent = int((i+1)*100/length)
+            self.export_progress_var.set(percent)
+            self.export_progress_label.config(text=f"进度：{percent}%")
+            self.update_idletasks()
         filepath = filedialog.asksaveasfilename(title="保存为JSON文件", defaultextension=".json", filetypes=[("JSON files", "*.json")])
         if not filepath:
             self.export_result_label.config(text="取消导出", fg="#999")
+            self.export_progress_var.set(0)
+            self.export_progress_label.config(text="进度：0%")
             return
         export_json(data, filepath)
         self.export_result_label.config(text=f"导出成功，共{len(data)}条数据", fg="#00ffcc")
+        self.export_progress_var.set(0)
+        self.export_progress_label.config(text="进度：0%")
 
     def do_write_from_json(self):
         ip = self.ip_entry.get().strip()
